@@ -1,0 +1,231 @@
+apiVersion: v1
+kind: ImageStream
+metadata:
+  name: ml-service
+  namespace: enbd-sentiment
+---
+apiVersion: build.openshift.io/v1
+kind: BuildConfig
+metadata:
+  name: ml-service
+  namespace: enbd-sentiment
+spec:
+  output:
+    to:
+      kind: ImageStreamTag
+      name: ml-service:latest
+  source:
+    type: Git
+    git:
+      uri: https://github.com/enbd/sentiment-analysis.git
+    contextDir: ml-service
+  strategy:
+    type: Docker
+    dockerStrategy:
+      dockerfilePath: Dockerfile
+  triggers:
+  - type: ConfigChange
+  - type: ImageChange
+---
+apiVersion: v1
+kind: ImageStream
+metadata:
+  name: flink-job
+  namespace: enbd-sentiment
+---
+apiVersion: build.openshift.io/v1
+kind: BuildConfig
+metadata:
+  name: flink-job
+  namespace: enbd-sentiment
+spec:
+  output:
+    to:
+      kind: ImageStreamTag
+      name: flink-job:latest
+  source:
+    type: Git
+    git:
+      uri: https://github.com/enbd/sentiment-analysis.git
+    contextDir: flink-job
+  strategy:
+    type: Docker
+    dockerStrategy:
+      dockerfilePath: Dockerfile
+  triggers:
+  - type: ConfigChange
+  - type: ImageChange
+---
+apiVersion: v1
+kind: ImageStream
+metadata:
+  name: aggregator
+  namespace: enbd-sentiment
+---
+apiVersion: build.openshift.io/v1
+kind: BuildConfig
+metadata:
+  name: aggregator
+  namespace: enbd-sentiment
+spec:
+  output:
+    to:
+      kind: ImageStreamTag
+      name: aggregator:latest
+  source:
+    type: Git
+    git:
+      uri: https://github.com/enbd/sentiment-analysis.git
+    contextDir: aggregator
+  strategy:
+    type: Docker
+    dockerStrategy:
+      dockerfilePath: Dockerfile
+  triggers:
+  - type: ConfigChange
+  - type: ImageChange
+---
+apiVersion: v1
+kind: ImageStream
+metadata:
+  name: api-gateway
+  namespace: enbd-sentiment
+---
+apiVersion: build.openshift.io/v1
+kind: BuildConfig
+metadata:
+  name: api-gateway
+  namespace: enbd-sentiment
+spec:
+  output:
+    to:
+      kind: ImageStreamTag
+      name: api-gateway:latest
+  source:
+    type: Git
+    git:
+      uri: https://github.com/enbd/sentiment-analysis.git
+    contextDir: api-gateway
+  strategy:
+    type: Docker
+    dockerStrategy:
+      dockerfilePath: Dockerfile
+  triggers:
+  - type: ConfigChange
+  - type: ImageChange
+---
+apiVersion: v1
+kind: ImageStream
+metadata:
+  name: frontend
+  namespace: enbd-sentiment
+---
+apiVersion: build.openshift.io/v1
+kind: BuildConfig
+metadata:
+  name: frontend
+  namespace: enbd-sentiment
+spec:
+  output:
+    to:
+      kind: ImageStreamTag
+      name: frontend:latest
+  source:
+    type: Git
+    git:
+      uri: https://github.com/enbd/sentiment-analysis.git
+    contextDir: frontend
+  strategy:
+    type: Docker
+    dockerStrategy:
+      dockerfilePath: Dockerfile
+  triggers:
+  - type: ConfigChange
+  - type: ImageChange
+---
+apiVersion: v1
+kind: ImageStream
+metadata:
+  name: twitter-connector
+  namespace: enbd-sentiment
+---
+apiVersion: build.openshift.io/v1
+kind: BuildConfig
+metadata:
+  name: twitter-connector
+  namespace: enbd-sentiment
+spec:
+  output:
+    to:
+      kind: ImageStreamTag
+      name: twitter-connector:latest
+  source:
+    type: Git
+    git:
+      uri: https://github.com/enbd/sentiment-analysis.git
+    contextDir: connectors/x-twitter
+  strategy:
+    type: Docker
+    dockerStrategy:
+      dockerfilePath: Dockerfile
+  triggers:
+  - type: ConfigChange
+  - type: ImageChange
+---
+apiVersion: v1
+kind: ImageStream
+metadata:
+  name: reddit-connector
+  namespace: enbd-sentiment
+---
+apiVersion: build.openshift.io/v1
+kind: BuildConfig
+metadata:
+  name: reddit-connector
+  namespace: enbd-sentiment
+spec:
+  output:
+    to:
+      kind: ImageStreamTag
+      name: reddit-connector:latest
+  source:
+    type: Git
+    git:
+      uri: https://github.com/enbd/sentiment-analysis.git
+    contextDir: connectors/reddit
+  strategy:
+    type: Docker
+    dockerStrategy:
+      dockerfilePath: Dockerfile
+  triggers:
+  - type: ConfigChange
+  - type: ImageChange
+---
+apiVersion: v1
+kind: ImageStream
+metadata:
+  name: data-generator
+  namespace: enbd-sentiment
+---
+apiVersion: build.openshift.io/v1
+kind: BuildConfig
+metadata:
+  name: data-generator
+  namespace: enbd-sentiment
+spec:
+  output:
+    to:
+      kind: ImageStreamTag
+      name: data-generator:latest
+  source:
+    type: Git
+    git:
+      uri: https://github.com/enbd/sentiment-analysis.git
+    contextDir: connectors/generator
+  strategy:
+    type: Docker
+    dockerStrategy:
+      dockerfilePath: Dockerfile
+  triggers:
+  - type: ConfigChange
+  - type: ImageChange

@@ -1,0 +1,49 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: sentiment-config
+  namespace: enbd-sentiment
+data:
+  # Kafka Configuration (ENBD Infrastructure)
+  KAFKA_BOOTSTRAP_SERVERS: "kafka.enbd.ae:9092"
+  KAFKA_RAW_TOPIC: "sentiment.raw"
+  KAFKA_PROCESSED_TOPIC: "sentiment.processed"
+
+  # Elasticsearch Configuration (ENBD Infrastructure)
+  ELASTICSEARCH_URL: "https://elasticsearch.enbd.ae:9200"
+
+  # Service URLs (Internal)
+  ML_SERVICE_URL: "http://ml-service:8000"
+
+  # Application Configuration
+  LOG_LEVEL: "info"
+  AGGREGATION_WINDOW: "60000"
+
+  # Twitter API Configuration
+  TWITTER_KEYWORDS: "banking,finance,credit card,loan,mortgage,investment"
+  TWITTER_LANGUAGES: "en"
+  RATE_LIMIT_WINDOW: "900000"
+  RATE_LIMIT_MAX_REQUESTS: "300"
+
+  # Reddit API Configuration
+  REDDIT_SUBREDDITS: "personalfinance,banking,creditcards,investing"
+  REDDIT_KEYWORDS: "bank,credit,loan,mortgage,finance"
+  REDDIT_USER_AGENT: "ENBDSentimentBot/1.0"
+
+  # Data Generator Configuration
+  TOTAL_MESSAGES: "20000"
+  MESSAGES_PER_SECOND: "100"
+  CITIES: "Dubai,Abu Dhabi,Sharjah,Ajman,Ras Al Khaimah,Fujairah,Umm Al Quwain"
+  PRODUCTS: "Credit Card,Personal Loan,Mortgage,Savings Account,Investment,Insurance"
+  CHANNELS: "Mobile App,Website,Branch,Call Center,Social Media"
+  PLATFORMS: "Twitter,Reddit,Instagram,Facebook"
+
+  # ML Service Configuration
+  MODEL_NAME: "cardiffnlp/twitter-roberta-base-sentiment-latest"
+  EMOTION_MODEL: "j-hartmann/emotion-english-distilroberta-base"
+  DEVICE: "cpu"
+  WORKERS: "4"
+
+  # API Gateway Configuration
+  PORT: "3001"
+  CORS_ORIGIN: "https://sentiment.enbd.ae"

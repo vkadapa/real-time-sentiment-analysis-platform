@@ -1,0 +1,73 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: aggregator
+  namespace: enbd-sentiment
+  labels:
+    app: aggregator
+    tier: backend
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: aggregator
+  template:
+    metadata:
+      labels:
+        app: aggregator
+        tier: backend
+    spec:
+      containers:
+      - name: aggregator
+        image: image-registry.openshift-image-registry.svc:5000/enbd-sentiment/aggregator:latest
+        imagePullPolicy: Always
+        env:
+        - name: KAFKA_BOOTSTRAP_SERVERS
+          valueFrom:
+            configMapKeyRef:
+              name: sentiment-config
+              key: KAFKA_BOOTSTRAP_SERVERS
+        - name: KAFKA_TOPIC
+          valueFrom:
+            configMapKeyRef:
+              name: sentiment-config
+              key: KAFKA_PROCESSED_TOPIC
+        - name: KAFKA_GROUP_ID
+          value: "aggregator-group"
+        - name: REDIS_HOST
+          valueFrom:
+            secretKeyRef:
+              name: sentiment-secrets
+              key: REDIS_HOST
+        - name: REDIS_PORT
+          valueFrom:
+            secretKeyRef:
+              name: sentiment-secrets
+              key: REDIS_PORT
+        - name: REDIS_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: sentiment-secrets
+              key: REDIS_PASSWORD
+        - name: ELASTICSEARCH_URL
+          valueFrom:
+            configMapKeyRef:
+              name: sentiment-config
+              key: ELASTICSEARCH_URL
+        - name: AGGREGATION_WINDOW
+          valueFrom:
+            configMapKeyRef:
+              name: sentiment-config
+              key: AGGREGATION_WINDOW
+        - name: LOG_LEVEL
+          valueFrom:
+            configMapKeyRef:
+              name: sentiment-config
+              key: LOG_LEVEL
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "250m"
+          limits:
+            memory: "1Gi"
+            cpu: "500m"

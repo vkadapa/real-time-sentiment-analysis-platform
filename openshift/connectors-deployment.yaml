@@ -1,0 +1,205 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: twitter-connector
+  namespace: enbd-sentiment
+  labels:
+    app: twitter-connector
+    tier: connector
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: twitter-connector
+  template:
+    metadata:
+      labels:
+        app: twitter-connector
+        tier: connector
+    spec:
+      containers:
+      - name: twitter-connector
+        image: image-registry.openshift-image-registry.svc:5000/enbd-sentiment/twitter-connector:latest
+        imagePullPolicy: Always
+        env:
+        - name: KAFKA_BOOTSTRAP_SERVERS
+          valueFrom:
+            configMapKeyRef:
+              name: sentiment-config
+              key: KAFKA_BOOTSTRAP_SERVERS
+        - name: KAFKA_TOPIC
+          valueFrom:
+            configMapKeyRef:
+              name: sentiment-config
+              key: KAFKA_RAW_TOPIC
+        - name: TWITTER_BEARER_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: sentiment-secrets
+              key: TWITTER_BEARER_TOKEN
+        - name: TWITTER_KEYWORDS
+          valueFrom:
+            configMapKeyRef:
+              name: sentiment-config
+              key: TWITTER_KEYWORDS
+        - name: TWITTER_LANGUAGES
+          valueFrom:
+            configMapKeyRef:
+              name: sentiment-config
+              key: TWITTER_LANGUAGES
+        - name: RATE_LIMIT_WINDOW
+          valueFrom:
+            configMapKeyRef:
+              name: sentiment-config
+              key: RATE_LIMIT_WINDOW
+        - name: RATE_LIMIT_MAX_REQUESTS
+          valueFrom:
+            configMapKeyRef:
+              name: sentiment-config
+              key: RATE_LIMIT_MAX_REQUESTS
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "100m"
+          limits:
+            memory: "512Mi"
+            cpu: "250m"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: reddit-connector
+  namespace: enbd-sentiment
+  labels:
+    app: reddit-connector
+    tier: connector
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: reddit-connector
+  template:
+    metadata:
+      labels:
+        app: reddit-connector
+        tier: connector
+    spec:
+      containers:
+      - name: reddit-connector
+        image: image-registry.openshift-image-registry.svc:5000/enbd-sentiment/reddit-connector:latest
+        imagePullPolicy: Always
+        env:
+        - name: KAFKA_BOOTSTRAP_SERVERS
+          valueFrom:
+            configMapKeyRef:
+              name: sentiment-config
+              key: KAFKA_BOOTSTRAP_SERVERS
+        - name: KAFKA_TOPIC
+          valueFrom:
+            configMapKeyRef:
+              name: sentiment-config
+              key: KAFKA_RAW_TOPIC
+        - name: REDDIT_CLIENT_ID
+          valueFrom:
+            secretKeyRef:
+              name: sentiment-secrets
+              key: REDDIT_CLIENT_ID
+        - name: REDDIT_CLIENT_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: sentiment-secrets
+              key: REDDIT_CLIENT_SECRET
+        - name: REDDIT_USER_AGENT
+          valueFrom:
+            configMapKeyRef:
+              name: sentiment-config
+              key: REDDIT_USER_AGENT
+        - name: REDDIT_SUBREDDITS
+          valueFrom:
+            configMapKeyRef:
+              name: sentiment-config
+              key: REDDIT_SUBREDDITS
+        - name: REDDIT_KEYWORDS
+          valueFrom:
+            configMapKeyRef:
+              name: sentiment-config
+              key: REDDIT_KEYWORDS
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "100m"
+          limits:
+            memory: "512Mi"
+            cpu: "250m"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: data-generator
+  namespace: enbd-sentiment
+  labels:
+    app: data-generator
+    tier: connector
+spec:
+  replicas: 0  # Set to 1 to enable synthetic data generation
+  selector:
+    matchLabels:
+      app: data-generator
+  template:
+    metadata:
+      labels:
+        app: data-generator
+        tier: connector
+    spec:
+      containers:
+      - name: data-generator
+        image: image-registry.openshift-image-registry.svc:5000/enbd-sentiment/data-generator:latest
+        imagePullPolicy: Always
+        env:
+        - name: KAFKA_BOOTSTRAP_SERVERS
+          valueFrom:
+            configMapKeyRef:
+              name: sentiment-config
+              key: KAFKA_BOOTSTRAP_SERVERS
+        - name: KAFKA_TOPIC
+          valueFrom:
+            configMapKeyRef:
+              name: sentiment-config
+              key: KAFKA_RAW_TOPIC
+        - name: TOTAL_MESSAGES
+          valueFrom:
+            configMapKeyRef:
+              name: sentiment-config
+              key: TOTAL_MESSAGES
+        - name: MESSAGES_PER_SECOND
+          valueFrom:
+            configMapKeyRef:
+              name: sentiment-config
+              key: MESSAGES_PER_SECOND
+        - name: CITIES
+          valueFrom:
+            configMapKeyRef:
+              name: sentiment-config
+              key: CITIES
+        - name: PRODUCTS
+          valueFrom:
+            configMapKeyRef:
+              name: sentiment-config
+              key: PRODUCTS
+        - name: CHANNELS
+          valueFrom:
+            configMapKeyRef:
+              name: sentiment-config
+              key: CHANNELS
+        - name: PLATFORMS
+          valueFrom:
+            configMapKeyRef:
+              name: sentiment-config
+              key: PLATFORMS
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "100m"
+          limits:
+            memory: "512Mi"
+            cpu: "250m"

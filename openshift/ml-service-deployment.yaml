@@ -1,0 +1,88 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ml-service
+  namespace: enbd-sentiment
+  labels:
+    app: ml-service
+    tier: backend
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: ml-service
+  template:
+    metadata:
+      labels:
+        app: ml-service
+        tier: backend
+    spec:
+      containers:
+      - name: ml-service
+        image: image-registry.openshift-image-registry.svc:5000/enbd-sentiment/ml-service:latest
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 8000
+          name: http
+        env:
+        - name: MODEL_NAME
+          valueFrom:
+            configMapKeyRef:
+              name: sentiment-config
+              key: MODEL_NAME
+        - name: EMOTION_MODEL
+          valueFrom:
+            configMapKeyRef:
+              name: sentiment-config
+              key: EMOTION_MODEL
+        - name: DEVICE
+          valueFrom:
+            configMapKeyRef:
+              name: sentiment-config
+              key: DEVICE
+        - name: WORKERS
+          valueFrom:
+            configMapKeyRef:
+              name: sentiment-config
+              key: WORKERS
+        - name: LOG_LEVEL
+          valueFrom:
+            configMapKeyRef:
+              name: sentiment-config
+              key: LOG_LEVEL
+        resources:
+          requests:
+            memory: "2Gi"
+            cpu: "1000m"
+          limits:
+            memory: "4Gi"
+            cpu: "2000m"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8000
+          initialDelaySeconds: 60
+          periodSeconds: 30
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8000
+          initialDelaySeconds: 30
+          periodSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ml-service
+  namespace: enbd-sentiment
+  labels:
+    app: ml-service
+spec:
+  type: ClusterIP
+  ports:
+  - port: 8000
+    targetPort: 8000
+    protocol: TCP
+    name: http
+  selector:
+    app: ml-service

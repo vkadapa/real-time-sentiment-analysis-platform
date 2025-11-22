@@ -1,0 +1,240 @@
+#version: '3.8'
+
+services:
+  # Infrastructure Services (Local Dev - Replace with ENBD clusters in production)
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.5.0
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    ports:
+      - "2181:2181"
+    networks:
+      - sentiment-network
+
+  kafka:
+    image: confluentinc/cp-kafka:7.5.0
+    depends_on:
+      - zookeeper
+    ports:
+      - "9092:9092"
+      - "29092:29092"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092,PLAINTEXT_HOST://localhost:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+    networks:
+      - sentiment-network
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    command: redis-server --requirepass enbd_redis_pass
+    networks:
+      - sentiment-network
+    volumes:
+      - redis-data:/data
+
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.11.0
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+    ports:
+      - "9200:9200"
+    networks:
+      - sentiment-network
+    volumes:
+      - es-data:/usr/share/elasticsearch/data
+
+  # ML Service
+  ml-service:
+    build:
+      context: ./ml-service
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      - MODEL_NAME=cardiffnlp/twitter-roberta-base-sentiment-latest
+      - EMOTION_MODEL=j-hartmann/emotion-english-distilroberta-base
+      - DEVICE=cpu
+      - WORKERS=4
+      - LOG_LEVEL=INFO
+    networks:
+      - sentiment-network
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 4G
+        reservations:
+          memory: 2G
+
+  # Social Media Connectors
+  twitter-connector:
+    build:
+      context: ./connectors/x-twitter
+      dockerfile: Dockerfile
+    environment:
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:29092
+      - KAFKA_TOPIC=sentiment.raw
+      - TWITTER_BEARER_TOKEN=${TWITTER_BEARER_TOKEN:-}
+      - TWITTER_KEYWORDS=banking,finance,credit card,loan,mortgage,investment
+      - TWITTER_LANGUAGES=en
+      - RATE_LIMIT_WINDOW=900000
+      - RATE_LIMIT_MAX_REQUESTS=300
+    depends_on:
+      - kafka
+    networks:
+      - sentiment-network
+
+  reddit-connector:
+    build:
+      context: ./connectors/reddit
+      dockerfile: Dockerfile
+    environment:
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:29092
+      - KAFKA_TOPIC=sentiment.raw
+      - REDDIT_CLIENT_ID=${REDDIT_CLIENT_ID:-}
+      - REDDIT_CLIENT_SECRET=${REDDIT_CLIENT_SECRET:-}
+      - REDDIT_USER_AGENT=ENBDSentimentBot/1.0
+      - REDDIT_SUBREDDITS=personalfinance,banking,creditcards,investing
+      - REDDIT_KEYWORDS=bank,credit,loan,mortgage,finance
+    depends_on:
+      - kafka
+    networks:
+      - sentiment-network
+
+  # Data Generator (Fallback when APIs unavailable)
+  data-generator:
+    build:
+      context: ./connectors/generator
+      dockerfile: Dockerfile
+    environment:
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:29092
+      - KAFKA_TOPIC=sentiment.raw
+      - TOTAL_MESSAGES=20000
+      - MESSAGES_PER_SECOND=100
+      - CITIES=Dubai,Abu Dhabi,Sharjah,Ajman,Ras Al Khaimah,Fujairah,Umm Al Quwain
+      - PRODUCTS=Credit Card,Personal Loan,Mortgage,Savings Account,Investment,Insurance
+      - CHANNELS=Mobile App,Website,Branch,Call Center,Social Media
+      - PLATFORMS=Twitter,Reddit,Instagram,Facebook
+    depends_on:
+      - kafka
+    networks:
+      - sentiment-network
+
+  # Flink Job Manager
+  flink-jobmanager:
+    build:
+      context: ./flink-job
+      dockerfile: Dockerfile
+    ports:
+      - "8081:8081"
+    command: jobmanager
+    environment:
+      - JOB_MANAGER_RPC_ADDRESS=flink-jobmanager
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:29092
+      - ML_SERVICE_URL=http://ml-service:8000
+    networks:
+      - sentiment-network
+    volumes:
+      - flink-checkpoints:/tmp/flink-checkpoints
+
+  # Flink Task Manager
+  flink-taskmanager:
+    build:
+      context: ./flink-job
+      dockerfile: Dockerfile
+    depends_on:
+      - flink-jobmanager
+    command: taskmanager
+    environment:
+      - JOB_MANAGER_RPC_ADDRESS=flink-jobmanager
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:29092
+      - ML_SERVICE_URL=http://ml-service:8000
+    networks:
+      - sentiment-network
+    deploy:
+      replicas: 2
+      resources:
+        limits:
+          cpus: '2'
+          memory: 2G
+
+  # Aggregator Service
+  aggregator:
+    build:
+      context: ./aggregator
+      dockerfile: Dockerfile
+    environment:
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:29092
+      - KAFKA_TOPIC=sentiment.processed
+      - KAFKA_GROUP_ID=aggregator-group
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_PASSWORD=enbd_redis_pass
+      - ELASTICSEARCH_URL=http://elasticsearch:9200
+      - AGGREGATION_WINDOW=60000
+      - LOG_LEVEL=info
+    depends_on:
+      - kafka
+      - redis
+      - elasticsearch
+    networks:
+      - sentiment-network
+    deploy:
+      replicas: 2
+
+  # WebSocket API Gateway
+  api-gateway:
+    build:
+      context: ./api-gateway
+      dockerfile: Dockerfile
+    ports:
+      - "3001:3001"
+    environment:
+      - PORT=3001
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_PASSWORD=enbd_redis_pass
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:29092
+      - KAFKA_TOPIC=sentiment.processed
+      - CORS_ORIGIN=http://localhost:3000
+      - JWT_SECRET=${JWT_SECRET:-enbd_jwt_secret_change_in_prod}
+      - LOG_LEVEL=info
+    depends_on:
+      - redis
+      - kafka
+    networks:
+      - sentiment-network
+
+  # React Frontend
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "3000:80"
+    environment:
+      - REACT_APP_WS_URL=ws://localhost:3001
+      - REACT_APP_API_URL=http://localhost:3001
+    depends_on:
+      - api-gateway
+    networks:
+      - sentiment-network
+
+networks:
+  sentiment-network:
+    driver: bridge
+
+volumes:
+  redis-data:
+  es-data:
+  flink-checkpoints:
