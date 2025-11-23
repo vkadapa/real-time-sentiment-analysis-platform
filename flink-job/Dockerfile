@@ -1,23 +1,25 @@
-FROM flink:1.18-java17
+# Build stage
+FROM maven:3.9-eclipse-temurin-17 AS builder
 
 # Set working directory
-WORKDIR /opt/flink
+WORKDIR /build
 
-# Copy Maven wrapper and pom.xml
+# Copy pom.xml first for better layer caching
 COPY pom.xml .
-COPY .mvn .mvn
-COPY mvnw .
 
 # Download dependencies
-RUN chmod +x mvnw && ./mvnw dependency:go-offline
+RUN mvn dependency:go-offline -B
 
 # Copy source code
 COPY src src
 
 # Build the application
-RUN ./mvnw clean package -DskipTests
+RUN mvn clean package -DskipTests -B
 
-# Copy the JAR to Flink lib directory
-RUN cp target/sentiment-flink-job-1.0.0.jar /opt/flink/usrlib/sentiment-flink-job.jar
+# Runtime stage
+FROM flink:1.18-java17
+
+# Copy the JAR from build stage to Flink lib directory
+COPY --from=builder /build/target/sentiment-flink-job-1.0.0.jar /opt/flink/usrlib/sentiment-flink-job.jar
 
 # The base image already has the entrypoint configured
